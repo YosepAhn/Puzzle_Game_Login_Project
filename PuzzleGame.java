@@ -1,533 +1,457 @@
-import java.awt.Color;
-import java.awt.Container;
-import java.awt.Dimension;
+import java.awt.CardLayout;
+import java.awt.Component;
 import java.awt.Font;
-import java.awt.Graphics;
-import java.awt.Toolkit;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.text.SimpleDateFormat;
-import java.util.Random;
-import java.util.Vector;
+import java.sql.Statement;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JTextField;
 
-public class PuzzleGame {
-	public static void main(String[] arg) {
-		MainFrame mf = new MainFrame();
+public class LoginProject {
+
+	JPanel cardPanel;
+	LoginProject lp;
+	CardLayout card;
+	String id = null;
+
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+
 		LoginProject lp = new LoginProject();
-	}
-}
+		lp.setFrame(lp);	}
 
-class MainFrame extends JFrame implements MouseListener, Runnable, ActionListener {
+	public void setFrame(LoginProject lpro) {
 
-	private JLabel lb_title = new JLabel();
+		JFrame jf = new JFrame();
+		LoginPanel lp = new LoginPanel(lpro);
+		signupPanel sp = new signupPanel(lpro);
+		userMyPage ump = new userMyPage(lpro);
 
-	private JLabel lb_time = new JLabel();
+		card = new CardLayout();
 
-	private JButton bt_start = new JButton("START");
+		cardPanel = new JPanel(card);
+		cardPanel.add(lp.mainPanel, "Login");
+		cardPanel.add(sp.mainPanel, "Register");
+		cardPanel.add(ump.mainPanel, "My Page");
 
-	private JButton bt_reset = new JButton("RESET");
-	
-	public JButton databaseButton = new JButton("RANKING");
-
-	SimpleDateFormat time_format; // 시간값을변환하기위한포맷
-
-	String show_time; // 진행시간값을받아들일문자열
-
-	long start_time, current_time, actual_time; // 게임시작시간, 컴퓨터시간, 실제게임진행시간
-
-	boolean time_run = false;
-
-	Thread th; // 스레드
-
-	ImagePanel sc; // 게임화면을표시할패널클래스접근키
-
-
-	MainFrame() {
-
-		// 화면에띄울프레임정의
-
-		init();
-
-		start();
-
-		setTitle("Puzzle Game");
-
-		setSize(600, 600);
-
-		Dimension screen = Toolkit.getDefaultToolkit().getScreenSize();
-
-		int xpos = (int) (screen.getWidth() / 2 - getWidth() / 2);
-
-		int ypos = (int) (screen.getHeight() / 2 - getHeight() / 2);
-
-		setLocation(xpos, ypos);
-
-		setResizable(false);
-
-		setVisible(true);
-		
-		
+		jf.add(cardPanel);
+		jf.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		jf.setSize(500, 700);
+		jf.setVisible(true);
 	}
 
-	public void init() {
-
-		// 게임라벨, 버튼및게임화면용패널설정
-
-		Container con = this.getContentPane();
-
-		con.setLayout(null);
-
-		lb_title.setBounds(240, 20, 200, 30);
-		lb_title.setFont(new Font("Default", Font.BOLD, 20));
-		lb_title.setForeground(Color.blue);
-
-		con.add(lb_title);
-
-		lb_time.setBounds(370, 70, 150, 30);
-		lb_time.setFont(new Font("Default", Font.BOLD, 20));
-		lb_time.setForeground(Color.red);
-		con.add(lb_time);
-
-		// 프레임에표시할텍스트라벨
-
-		bt_start.setBounds(100, 520, 100, 30);
-		bt_start.setFont(new Font("Default", Font.BOLD, 20));
-		bt_start.setBackground(Color.YELLOW);
-		con.add(bt_start);
-
-		bt_reset.setBounds(400, 520, 100, 30);
-		bt_reset.setFont(new Font("Default", Font.BOLD, 20));
-		bt_reset.setBackground(Color.YELLOW);
-		con.add(bt_reset);
-
-		databaseButton.setBounds(30, 30, 150, 30);
-		databaseButton.setFont(new Font("Default", Font.BOLD, 20));
-		databaseButton.setBackground(Color.YELLOW);
-		databaseButton.addActionListener(this);
-		con.add(databaseButton);
-		
-
-		// 프레임에표시할게임시작및리셋버튼
-
-		sc = new ImagePanel();
-
-		sc.setBounds(100, 100, 410, 410);
-
-		con.add(sc);
-
-		// 게임화면용패널
-
-	}
-
-	public void start() { // 프레임내실행시킬기본내용
-
-		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // 프레임종료용X버튼활성화
-		this.addMouseListener(this); // 프레임내마우스동작활성화
-
-		bt_start.addMouseListener(this); // start 버튼에마우스동작활성화
-		bt_reset.addMouseListener(this); // reset 버튼에마우스동작활성화
-
-		th = new Thread(this);
-		th.start(); // 스레드시작
-		time_format = new SimpleDateFormat("(HH:mm:ss.SSS)"); // 시간포맷설정
-		lb_time.setText("(00:00:00.000)");
-		lb_title.setText("Puzzle Game"); // 라벨텍스트내용설정
-		sc.gameStart(false); // 게임은대기상태로
-
-	}
-
-	public void run() {
-
-		while (true) {
-
-			try {
-
-				repaint();
-
-				TimeCheck();
-
-				Thread.sleep(15);
-
-				// 무한스레드돌리기
-			} catch (Exception e) {
-
-			}
-		}
-	}
-
-	public void TimeCheck() {
-
-		if (time_run) {
-
-			current_time = System.currentTimeMillis();
-
-			actual_time = current_time - start_time;
-
-			// 게임시작버튼을눌렀을때의시간값과
-
-			// 실제시간값으로게임진행시간계산.
-
-			sc.countDown((int) actual_time / 1000);
-
-			// 카운트다운표시용시간값전송
-
-			if (!sc.game_start && sc.check <= 50) {
-
-				// 게임세팅완료후게임시작되면게임진행시간갱신
-
-				show_time = time_format.format(actual_time - 32403000);
-
-				lb_time.setText(show_time);
-
-			}
-		}
-
-		if (sc.check > 50) {
-
-			sc.ClearTime(lb_time.getText());
-
-			// 숫자50까지클릭이끝나면게임클리어메세지띄울준비
-		}
-	}
 	public Connection getConnection() throws SQLException {
+
 		Connection conn = null;
 
 		conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/persons", "root", "mite");
 
 		return conn;
 	}
-	public void actionPerformed(ActionEvent e) {
-		if (e.getSource() == databaseButton) {
-        	
-            JFrame rankingFrame = new JFrame();
-            JPanel panel =new JPanel();            
-            rankingFrame.setSize(300, 200);
-            rankingFrame.setTitle("Ranking");
-            rankingFrame.add(panel);
-            
-            rankingFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            rankingFrame.setVisible(true);
-		}  
-            
-    }
-	
-	public void mouseClicked(MouseEvent e) {
 
-		if (e.getSource() == bt_start) {
-
-			// 게임시작버튼
-
-			if (!time_run && !sc.game_start) {
-
-				start_time = System.currentTimeMillis();
-
-				// 시작버튼눌렀을시시간값받기
-
-				sc.rect_select.clear();
-
-				time_run = true;
-
-				sc.gameStart(true);
-
-				// 게임및시간세팅
-				// System.out.println("start");
-			}
-
-		} else if (e.getSource() == bt_reset) {
-
-			// 게임초기화버튼
-
-			start_time = 0;
-
-			lb_time.setText("(00:00:00.000)");
-
-			sc.rect_select.clear();
-
-			sc.countDown(0);
-
-			time_run = false;
-
-			sc.gameStart(false);
-
-			sc.check = 0;
-
-			// 게임초기화
-
-			// System.out.println("reset");
-		}
-	}
-
-	public void mousePressed(MouseEvent e) {
-	}
-
-	public void mouseReleased(MouseEvent e) {
-	}
-
-	public void mouseEntered(MouseEvent e) {
-	}
-
-	public void mouseExited(MouseEvent e) {
+	public void setid(String id) {
+		this.id = id;
 	}
 
 }
 
-class ImagePanel extends JPanel implements MouseListener {
+class LoginPanel extends JPanel implements ActionListener {
 
-	// 실제게임화면을표시할패널
+	JPanel mainPanel;
+	JTextField idTextField;
+	JPasswordField passTextField;
 
-	int count = 3;// 카운트다운표시용
+	String userMode = "일반";
+	LoginProject lp;
+	Font font = new Font("회원가입", Font.BOLD, 40);
+	String admin = "admin";
 
-	int x, y; // 좌표값
+	public LoginPanel(LoginProject lp) {
+		this.lp = lp;
 
-	int check; // 숫자체크용
+		mainPanel = new JPanel();
+		mainPanel.setLayout(new GridLayout(5, 1));
 
-	public String time;// 클리어시간값표시용
+		JPanel centerPanel = new JPanel();
+		JLabel loginLabel = new JLabel("로그인 화면");
+		loginLabel.setFont(font);
+		centerPanel.add(loginLabel);
 
-	boolean game_start = false;
+		JPanel userPanel = new JPanel();
 
-	Random ran_num = new Random(); // 랜덤함수
+		JPanel gridBagidInfo = new JPanel(new GridBagLayout());
+		gridBagidInfo.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
+		GridBagConstraints c = new GridBagConstraints();
 
-	Vector rect_select = new Vector(); // 1-50 숫자보관용벡터
+		JLabel idLabel = new JLabel(" 아이디 : ");
+		c.fill = GridBagConstraints.HORIZONTAL;
+		c.gridx = 0;
+		c.gridy = 0;
+		gridBagidInfo.add(idLabel, c);
 
-	SelectRect sr; // 숫자보관용객체클래스접근키
-	
+		idTextField = new JTextField(15);
+		c.insets = new Insets(0, 5, 0, 0);
+		c.gridx = 1;
+		c.gridy = 0;
+		gridBagidInfo.add(idTextField, c);
+
+		JLabel passLabel = new JLabel(" 비밀번호 : ");
+		c.fill = GridBagConstraints.HORIZONTAL;
+		c.gridx = 0;
+		c.gridy = 1;
+		c.insets = new Insets(20, 0, 0, 0);
+		gridBagidInfo.add(passLabel, c);
+
+		passTextField = new JPasswordField(15);
+		c.insets = new Insets(20, 5, 0, 0);
+		c.gridx = 1;
+		c.gridy = 1;
+		gridBagidInfo.add(passTextField, c);
+
+		JPanel loginPanel = new JPanel();
+		JButton loginButton = new JButton("로그인");
+		loginPanel.add(loginButton);
+
+		JPanel signupPanel = new JPanel();
+		JButton signupButton = new JButton("회원가입");
+		loginPanel.add(signupButton);
+
+		mainPanel.add(centerPanel);
+		mainPanel.add(userPanel);
+		mainPanel.add(gridBagidInfo);
+		mainPanel.add(loginPanel);
+		mainPanel.add(signupPanel);
+
+		loginButton.addActionListener(this);
+
+		signupButton.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				// TODO Auto-generated method stub
+				lp.card.next(lp.cardPanel);
+			}
+		});
+
+	}
+
+	@Override
+	public void actionPerformed(ActionEvent e) {
+		// TODO Auto-generated method stub
+		JButton jb = (JButton) e.getSource();
+
+		switch (e.getActionCommand()) {
+
+		case "일반":
+			userMode = "일반";
+			break;
+
+		case "관리자":
+			userMode = "관리자";
+			break;
+
+		case "로그인":
+
+			String id = idTextField.getText();
+			String pass = passTextField.getText();
+
+			try {
+
+				String sql_query = String.format("SELECT password FROM persons_info WHERE id = '%s' AND password ='%s'",
+						id, pass);
+
+				Connection conn = lp.getConnection();
+				Statement stmt = conn.createStatement();
+
+				ResultSet rset = stmt.executeQuery(sql_query);
+				rset.next();
+
+				if (pass.equals(rset.getString(1))) {
+					JOptionPane.showMessageDialog(this, "로그인 성공", "로그인 성공", 1);
+					lp.setid(idTextField.getText()); // 로그인하고 로그인 아이디 정보 가질 수 있게.
+					lp.card.show(lp.cardPanel, "My Page");
+					new MainFrame(id);
+				}
+			} catch (SQLException ex) {
+				JOptionPane.showMessageDialog(this, "아이디 혹은 비밀번호가 다릅니다.", "로그인 실패", 1);
+			}
+			break;
+		}
+	}
+
+} // class LoginPanel
+
+class signupPanel extends JPanel {
+
+	JTextField idTf;
+	JPasswordField passTf;
+	JPasswordField passReTf;
+	JTextField nameTf;
+	JPanel mainPanel;
+	JPanel subPanel;
+	JButton registerButton;
+	Font font = new Font("회원가입", Font.BOLD, 40);
+
+	String id = "", pass = "", passRe = "", name = "";
 	LoginProject lp;
 
-	ImagePanel() {
-		this.addMouseListener(this);
-	}
+	public signupPanel(LoginProject lp) {
 
+		this.lp = lp;
+		subPanel = new JPanel();
+		subPanel.setLayout(new GridBagLayout());
+		subPanel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
 
-	public void countDown(int count) {
+		JLabel idLabel = new JLabel("아이디 : ");
+		JLabel passLabel = new JLabel("비밀번호 : ");
+		JLabel passReLabel = new JLabel("비밀번호 재확인 : ");
+		JLabel nameLabel = new JLabel("이름 : ");
 
-		// 게임시간값을받아와카운트다운표시
+		idTf = new JTextField(15);
+		passTf = new JPasswordField(15);
+		passReTf = new JPasswordField(15);
+		nameTf = new JTextField(15);
 
-		switch (count) {
+		GridBagConstraints c = new GridBagConstraints();
+		c.fill = GridBagConstraints.HORIZONTAL;
+		c.insets = new Insets(15, 5, 0, 0);
 
-		case 0:
+		c.gridx = 0;
+		c.gridy = 0;
+		subPanel.add(idLabel, c);
 
-			this.count = 3;
+		c.gridx = 1;
+		c.gridy = 0;
+		subPanel.add(idTf, c); // 아이디
 
-			break;
+		c.gridx = 0;
+		c.gridy = 1;
+		subPanel.add(passLabel, c);
 
-		case 1:
+		c.gridx = 1;
+		c.gridy = 1;
+		subPanel.add(passTf, c); // pass
 
-			this.count = 2;
+		c.gridx = 2;
+		c.gridy = 1;
+		subPanel.add(new JLabel("특수문자 + 8자"), c); // 보안설정
 
-			break;
+		c.gridx = 0;
+		c.gridy = 2;
+		subPanel.add(passReLabel, c);
 
-		case 2:
+		c.gridx = 1;
+		c.gridy = 2;
+		subPanel.add(passReTf, c); // password 재확인
 
-			this.count = 1;
+		c.gridx = 0;
+		c.gridy = 3;
+		subPanel.add(nameLabel, c);
 
-			break;
+		c.gridx = 1;
+		c.gridy = 3;
+		subPanel.add(nameTf, c); // 이름
 
-		case 3:
+		mainPanel = new JPanel();
+		mainPanel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
+		mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+		JLabel signupLabel = new JLabel("회원가입 화면 ");
+		signupLabel.setFont(font);
+		signupLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-			this.count = 0;
+		registerButton = new JButton("회원가입");
+		registerButton.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-			game_start = false;
+		mainPanel.add(signupLabel);
+		mainPanel.add(subPanel);
+		mainPanel.add(registerButton);
 
-			break;
-		}
-	}
+		registerButton.addActionListener(new ActionListener() { // 회원가입버튼
 
-	public void gameStart(boolean game_start) {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				// TODO Auto-generated method stub
+				id = idTf.getText();
+				pass = new String(passTf.getPassword());
+				passRe = new String(passReTf.getPassword());
+				name = nameTf.getText();
 
-		// 게임기본세팅
+				String sql = "insert into persons_info(id, password, name) values (?,?,?)";
 
-		// 25개의사각박스와해당박스안에
+				Pattern passPattern1 = Pattern.compile("^(?=.*[a-zA-Z])(?=.*\\d)(?=.*\\W).{8,20}$"); // 8자 영문+특문+숫자
+				Matcher passMatcher = passPattern1.matcher(pass);
 
-		// 랜덤으로난수를발생시켜나온숫자를받아입력한다.
+				if (!passMatcher.find()) {
+					JOptionPane.showMessageDialog(null, "비밀번호는 영문+특수문자+숫자 8자로 구성되어야 합니다", "비밀번호 오류", 1);
+				} else if (!pass.equals(passRe)) {
+					JOptionPane.showMessageDialog(null, "비밀번호가 서로 맞지 않습니다", "비밀번호 오류", 1);
 
-		this.game_start = game_start;
+				} else {
+					try {
+						Connection conn = lp.getConnection();
 
-		if (this.game_start) {
+						PreparedStatement pstmt = conn.prepareStatement(sql);
 
-			check = 1;
+						pstmt.setString(1, idTf.getText());
+						pstmt.setString(2, pass);
+						pstmt.setString(3, nameTf.getText());
 
-			for (int i = 0; i < 5; ++i) {
-				for (int j = 0; j < 5; ++j) {
-					int num = 0;
-					int xx = 5 + i * 80;
-					int yy = 5 + j * 80;
-					// 25개사각형좌표값들
-
-					num = ran_num.nextInt(25) + 1;
-					for (int k = 0; k < rect_select.size(); ++k) {
-						sr = (SelectRect) rect_select.get(k);
-						if (sr.number == num) {
-							num = ran_num.nextInt(25) + 1;
-							k = -1;
-						}
-					}
-					// 중복없는난수발생
-					sr = new SelectRect(xx, yy, num);
-					rect_select.add(sr);
-
-					// 받은좌표및난수값을객체화시켜벡터로저장
+						int r = pstmt.executeUpdate();
+						System.out.println("변경된 row " + r);
+						JOptionPane.showMessageDialog(null, "회원 가입 완료!", "회원가입", 1);
+						lp.card.previous(lp.cardPanel); // 다 완료되면 로그인 화면으로
+					} catch (SQLException e1) {
+						System.out.println("SQL error" + e1.getMessage());
+						if (e1.getMessage().contains("PRIMARY")) {
+							JOptionPane.showMessageDialog(null, "아이디 중복!", "아이디 중복 오류", 1);
+						} else
+							JOptionPane.showMessageDialog(null, "정보를 제대로 입력해주세요!", "오류", 1);
+					} // try ,catch
 				}
 			}
-		}
-	}
+		});
 
-	public void paint(Graphics g) {
-
-		g.drawRect(0, 0, 400, 400);
-
-		// 게임화면사각테두리
-
-		if (game_start) {
-
-			// 카운트다운텍스트그리기
-			g.setFont(new Font("Default", Font.BOLD, 50));
-			g.setColor(Color.BLUE);
-			g.drawString("CountDown", 70, 150);
-			g.setColor(Color.red);
-			g.setFont(new Font("Default", Font.BOLD, 100));
-
-			g.drawString("" + count, 170, 250);
-			g.setColor(Color.BLUE);
-
-		} else if (!game_start && count == 0) {
-
-			for (int i = 0; i < rect_select.size(); ++i) {
-
-				sr = (SelectRect) rect_select.get(i);
-
-				g.drawRect(sr.x, sr.y, 70, 70);
-
-				g.setFont(new Font("Default", Font.BOLD, 30));
-
-				g.drawString("" + sr.number, sr.x + 22, sr.y + 45);
-
-				// 벡터에저장된각각의숫자값을받아사각형과숫자그리기
-			}
-
-			g.setColor(Color.red);
-
-			g.drawRect(x * 80 + 5, y * 80 + 5, 70, 70);
-
-			// 마우스로선택된사각박스를붉게표시
-		}
-
-		if (check > 50) {
-
-			g.setColor(Color.blue);
-
-			g.setFont(new Font("Default", Font.BOLD, 50));
-
-			g.drawString("GAME CLEAR!", 40, 150);
-
-			g.setColor(Color.red);
-
-			g.setFont(new Font("Default", Font.BOLD, 40));
-
-			g.drawString("" + time, 90, 250);
-
-			// 게임이클리어되면클리어화면표시
-		}
-	}
-
-	public void ClearTime(String time) {
-	    this.time = time;
-
-	    String query = "SELECT name FROM persons_info";
-	    java.sql.Statement stmt;
-	    ResultSet rs;
-
-	    try {
-	        Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/persons", "root", "mite");
-	        stmt = conn.createStatement();
-	        rs = stmt.executeQuery(query);
-
-	        String sql = "UPDATE persons_info SET records = ? WHERE name = ? AND (records > ? OR records IS NULL)";
-	        PreparedStatement pstmt = conn.prepareStatement(sql);
-	        
-	        while (rs.next()) {
-	            String name = rs.getString("name");
-	            pstmt.setString(1, time);
-	            pstmt.setString(2, name);
-	            pstmt.setString(3, time);
-	            pstmt.executeUpdate();
-	        }
-
-	        pstmt.close();
-	        stmt.close();
-	        conn.close();
-	    } catch (Exception e) {
-	        e.printStackTrace();
-	    }
-	}
-
-	public void mouseClicked(MouseEvent e) {
-	}
-
-	public void mousePressed(MouseEvent e) {
-		x = e.getX() / 80;
-		y = e.getY() / 80;
-
-		if (count == 0) {
-			for (int i = 0; i < rect_select.size(); ++i) {
-				sr = (SelectRect) rect_select.get(i);
-				if (x == sr.x / 80 && y == sr.y / 80) {
-					int xx = sr.x;
-					int yy = sr.y;
-
-					if (sr.number - check == 0) {
-						check++;
-						rect_select.remove(i); // 1-50 숫자순서대로클릭되면해당하는숫자제거
-						if (check < 27) {
-							int num = 0;
-							num = ran_num.nextInt(25) + 26;
-							for (int k = 0; k < rect_select.size(); ++k) {
-								sr = (SelectRect) rect_select.get(k);
-								if (sr.number == num) {
-									num = ran_num.nextInt(25) + 26;
-									k = -1;
-								}
-							}
-							sr = new SelectRect(xx, yy, num);
-							rect_select.add(sr);
-							// 제거된숫자가있으면그자리에
-							// 다시난수를발생시켜숫자를추가
-						}
-					}
-				}
-			}
-		}
-	}
-
-	public void mouseReleased(MouseEvent e) {
-	}
-
-	public void mouseEntered(MouseEvent e) {
-	}
-
-	public void mouseExited(MouseEvent e) {
 	}
 }
 
+class userMyPage extends JPanel implements ActionListener {
 
-class SelectRect { // 숫자및위치보관용클래스
-	int x, y;
-	int number;
+	JPanel mainPanel;
+	JPanel centerPanel;
+	JPanel downPanel;
+	JButton logoutButton;
+	JButton unregisterButton;
+	JButton databaseButton;
+	LoginProject lp;
+	Font font = new Font("회원가입", Font.BOLD, 40);
 
-	SelectRect(int x, int y, int number) {
-		this.x = x;
-		this.y = y;
-		this.number = number;
+	JTextField changepassTF;
+	JButton changepassButton;
+
+	public userMyPage(LoginProject lp) {
+
+		this.lp = lp;
+
+		mainPanel = new JPanel();
+		mainPanel.setBorder(BorderFactory.createEmptyBorder(25, 25, 25, 25));
+		mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
+
+		// top
+		JLabel mypageLabel = new JLabel("내 정보");
+		mypageLabel.setFont(font);
+		mypageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+		// center
+
+		centerPanel = new JPanel(new GridBagLayout());
+		GridBagConstraints c = new GridBagConstraints();
+
+		changepassTF = new JPasswordField(15);
+		changepassButton = new JButton("비밀번호 바꾸기");
+
+		c.fill = GridBagConstraints.HORIZONTAL;
+		c.insets = new Insets(5, 5, 0, 0);
+
+		c.gridx = 0;
+		c.gridy = 1;
+		centerPanel.add(changepassTF, c);
+
+		c.gridx = 1;
+		c.gridy = 1;
+		centerPanel.add(changepassButton, c);
+
+		// down
+		downPanel = new JPanel();
+		logoutButton = new JButton("로그아웃");
+		unregisterButton = new JButton("탈퇴");
+	
+
+		downPanel.add(logoutButton);
+		downPanel.add(unregisterButton);
+
+		mainPanel.add(mypageLabel);
+		mainPanel.add(centerPanel);
+		mainPanel.add(downPanel);
+
+		logoutButton.addActionListener(new ActionListener() {
+
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				// TODO Auto-generated method stub
+				lp.card.first(lp.cardPanel);
+			}
+		});
+
+		changepassButton.addActionListener(this);
+		unregisterButton.addActionListener(this);
+	
 	}
+
+	@Override
+	public void actionPerformed(ActionEvent e) {
+		// TODO Auto-generated method stub
+
+		Connection conn = null;
+		PreparedStatement pstmt = null;
+		// System.out.println(lp.id);
+
+		try {
+			conn = lp.getConnection();
+
+			switch (e.getActionCommand()) {
+
+			case "비밀번호 바꾸기":
+				String SQL1 = "update persons_info set password=? where id=?";
+				pstmt = conn.prepareStatement(SQL1);
+
+				pstmt.setString(1, changepassTF.getText());
+				pstmt.setString(2, lp.id);
+
+				int r1 = pstmt.executeUpdate();
+				System.out.println("비밀번호 변경 완료 : " + r1);
+				break;
+
+			case "탈퇴":
+
+				String SQL2 = "delete from persons_info where id=?";
+				pstmt = conn.prepareStatement(SQL2);
+
+				int result = JOptionPane.showConfirmDialog(null, "정말로 탈퇴하시겠습니까?", "Confirm message",
+						JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+				if (result == JOptionPane.YES_OPTION) {
+					pstmt.setString(1, lp.id);
+					int r2 = pstmt.executeUpdate();
+					System.out.println("탈퇴 되었습니다: " + r2);
+					lp.card.first(lp.cardPanel);
+				} else
+					break;
+				break;
+			}
+
+		} catch (SQLException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+
+	}
+
 }
